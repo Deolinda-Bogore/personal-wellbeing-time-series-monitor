@@ -70,7 +70,7 @@ python3 -m pip install -r requirements.txt
 python3 -m streamlit run streamlit_app.py
 ```
 
-The dashboard combines the original browser-app functionality with the research interface. It lets you:
+The dashboard combines data entry, analysis, and export in one interface. It lets you:
 
 - select a StudentLife participant
 - add manual daily wellbeing entries
@@ -81,18 +81,6 @@ The dashboard combines the original browser-app functionality with the research 
 - read explainable feedback for the latest entry
 - review correlations between wellbeing domains
 - download the combined processed time-series CSV
-
-## Optional Browser Prototype
-
-The repository also keeps a lightweight HTML/CSS/JavaScript prototype:
-
-```text
-index.html
-app.js
-styles.css
-```
-
-This version is useful as a simple frontend demo, but the Streamlit app is the recommended version for the KAUST research application.
 
 ## Research Notebook
 
