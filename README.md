@@ -84,11 +84,15 @@ The dashboard combines data entry, analysis, and export in one interface. It let
 
 ## Research Notebook
 
-The project includes a recruiter-ready notebook that walks through the full research workflow:
+The project includes a research notebook that walks through the full workflow:
 
 ```text
 notebooks/personal_wellbeing_studentlife_pipeline.ipynb
 ```
+
+Open it in Google Colab:
+
+[Open notebook in Colab](https://colab.research.google.com/github/Deolinda-Bogore/personal-wellbeing-time-series-monitor/blob/main/notebooks/personal_wellbeing_studentlife_pipeline.ipynb)
 
 The notebook covers:
 
