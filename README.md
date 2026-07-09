@@ -37,6 +37,7 @@ This prototype aligns with that project because it demonstrates:
 - Add or update a daily wellbeing entry.
 - Generate sample data for a quick 21-day demo.
 - Import processed public-data CSV files.
+- Run an interactive Streamlit research dashboard.
 - View overall wellbeing score and risk status.
 - View physical, mental, social, occupational, and digital domain scores.
 - Visualize wellbeing trends over time.
@@ -60,7 +61,25 @@ Example:
 u00,2013-03-27,8.0,1,6.1,8.1,6.1,5.5,17.6,4.9
 ```
 
-## How to Run the App
+## How to Run the Streamlit Dashboard
+
+The recommended research-demo interface is the Streamlit dashboard:
+
+```bash
+python3 -m pip install -r requirements.txt
+python3 -m streamlit run streamlit_app.py
+```
+
+The dashboard lets you:
+
+- select a StudentLife participant
+- view wellbeing and domain timelines
+- inspect rule-based burnout-risk flags
+- read explainable feedback for the latest entry
+- review correlations between wellbeing domains
+- download a selected student's processed time-series CSV
+
+## How to Run the Browser App
 
 Open `index.html` in a browser.
 
