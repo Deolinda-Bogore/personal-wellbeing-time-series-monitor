@@ -37,7 +37,7 @@ This prototype aligns with that project because it demonstrates:
 - Add or update a daily wellbeing entry.
 - Generate sample data for a quick 21-day demo.
 - Import processed public-data CSV files.
-- Run an interactive Streamlit research dashboard.
+- Run one combined Streamlit research dashboard.
 - View overall wellbeing score and risk status.
 - View physical, mental, social, occupational, and digital domain scores.
 - Visualize wellbeing trends over time.
@@ -61,34 +61,38 @@ Example:
 u00,2013-03-27,8.0,1,6.1,8.1,6.1,5.5,17.6,4.9
 ```
 
-## How to Run the Streamlit Dashboard
+## How to Run the App
 
-The recommended research-demo interface is the Streamlit dashboard:
+The main application is the combined Streamlit dashboard:
 
 ```bash
 python3 -m pip install -r requirements.txt
 python3 -m streamlit run streamlit_app.py
 ```
 
-The dashboard lets you:
+The dashboard combines the original browser-app functionality with the research interface. It lets you:
 
 - select a StudentLife participant
+- add manual daily wellbeing entries
+- load 21-day demo entries
+- upload processed CSV files
 - view wellbeing and domain timelines
 - inspect rule-based burnout-risk flags
 - read explainable feedback for the latest entry
 - review correlations between wellbeing domains
-- download a selected student's processed time-series CSV
+- download the combined processed time-series CSV
 
-## How to Run the Browser App
+## Optional Browser Prototype
 
-Open `index.html` in a browser.
+The repository also keeps a lightweight HTML/CSS/JavaScript prototype:
 
-For a quick demo:
+```text
+index.html
+app.js
+styles.css
+```
 
-1. Click **Load sample data**.
-2. Review the wellbeing score and domain scores.
-3. Check the explanation section.
-4. Export the data as CSV if needed.
+This version is useful as a simple frontend demo, but the Streamlit app is the recommended version for the KAUST research application.
 
 ## Research Notebook
 

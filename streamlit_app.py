@@ -1,3 +1,4 @@
+from datetime import date, timedelta
 from pathlib import Path
 
 import pandas as pd
@@ -5,6 +6,25 @@ import streamlit as st
 
 
 DATA_PATH = Path(__file__).resolve().parent / "data" / "studentlife_wellbeing.csv"
+REQUIRED_COLUMNS = [
+    "student_id",
+    "date",
+    "sleep",
+    "stress",
+    "mood",
+    "energy",
+    "screenTime",
+    "workHours",
+    "activity",
+    "social",
+]
+DOMAIN_COLUMNS = [
+    "physical_score",
+    "mental_score",
+    "social_score",
+    "occupational_score",
+    "digital_score",
+]
 
 
 st.set_page_config(
@@ -21,38 +41,56 @@ def clamp(series, lower=0, upper=100):
 @st.cache_data
 def load_default_data():
     if not DATA_PATH.exists():
-        return pd.DataFrame()
+        return pd.DataFrame(columns=REQUIRED_COLUMNS)
     return pd.read_csv(DATA_PATH)
 
 
+def build_sample_entries():
+    start = date.today() - timedelta(days=20)
+    rows = []
+    for index in range(21):
+        rows.append(
+            {
+                "student_id": "manual_demo",
+                "date": start + timedelta(days=index),
+                "sleep": round(7.8 - (index % 5) * 0.35, 1),
+                "stress": min(10, 3 + (index % 6)),
+                "mood": max(1, 8 - (index % 4)),
+                "energy": max(1, 8 - (index % 5) * 0.6),
+                "screenTime": round(4.5 + (index % 6) * 0.7, 1),
+                "workHours": round(5.5 + (index % 7) * 0.6, 1),
+                "activity": round(35 - (index % 6) * 3.2, 1),
+                "social": max(1, 8 - (index % 5) * 0.7),
+            }
+        )
+    return pd.DataFrame(rows)
+
+
 def clean_data(df):
-    required = [
-        "student_id",
-        "date",
-        "sleep",
-        "stress",
-        "mood",
-        "energy",
-        "screenTime",
-        "workHours",
-        "activity",
-        "social",
-    ]
-    missing = [column for column in required if column not in df.columns]
+    if df.empty:
+        return pd.DataFrame(columns=REQUIRED_COLUMNS)
+
+    missing = [column for column in REQUIRED_COLUMNS if column not in df.columns]
     if missing:
         st.error(f"Missing required columns: {', '.join(missing)}")
-        return pd.DataFrame()
+        return pd.DataFrame(columns=REQUIRED_COLUMNS)
 
-    clean = df[required].copy()
+    clean = df[REQUIRED_COLUMNS].copy()
+    clean["student_id"] = clean["student_id"].fillna("manual").astype(str)
     clean["date"] = pd.to_datetime(clean["date"], errors="coerce")
-    for column in required[2:]:
+    for column in REQUIRED_COLUMNS[2:]:
         clean[column] = pd.to_numeric(clean[column], errors="coerce")
 
-    clean = clean.dropna(subset=["student_id", "date"]).sort_values(["student_id", "date"])
+    clean = clean.dropna(subset=["student_id", "date"])
+    clean = clean.dropna(subset=REQUIRED_COLUMNS[2:], how="all")
+    clean = clean.sort_values(["student_id", "date"]).reset_index(drop=True)
     return clean
 
 
 def add_scores(df):
+    if df.empty:
+        return df
+
     scored = df.copy()
     sleep_score = clamp((scored["sleep"] / 8) * 100)
     stress_score = clamp(100 - (scored["stress"] - 1) * 11.1)
@@ -68,7 +106,6 @@ def add_scores(df):
     scored["social_score"] = social_score.round(1)
     scored["occupational_score"] = (work_score * 0.55 + stress_score * 0.30 + energy_score * 0.15).round(1)
     scored["digital_score"] = (screen_score * 0.70 + sleep_score * 0.15 + stress_score * 0.15).round(1)
-
     scored["wellbeing_score"] = (
         scored["physical_score"] * 0.24
         + scored["mental_score"] * 0.28
@@ -85,8 +122,12 @@ def add_scores(df):
 
 
 def add_rule_engine(df):
+    if df.empty:
+        return df
+
     scored = df.copy()
     scored["occupational_strain"] = 100 - scored["occupational_score"]
+
     for column in ["physical_score", "social_score", "occupational_strain"]:
         grouped = scored.groupby("student_id", group_keys=False)
         scored[f"{column}_rolling_3d"] = grouped[column].apply(
@@ -101,7 +142,6 @@ def add_rule_engine(df):
     scored["strain_change"] = (scored["occupational_strain_rolling_3d"] - strain_base) / strain_base
     scored["physical_drop"] = (physical_base - scored["physical_score_rolling_3d"]) / physical_base
     scored["social_drop"] = (social_base - scored["social_score_rolling_3d"]) / social_base
-
     scored["burnout_risk"] = (
         (scored["strain_change"] > 0.30)
         & (scored["physical_drop"] > 0.20)
@@ -112,11 +152,14 @@ def add_rule_engine(df):
 
 def explain_latest(row):
     reasons = []
+    lowest_domain = row[DOMAIN_COLUMNS].astype(float).idxmin().replace("_score", "")
 
     if row["burnout_risk"]:
         reasons.append(
-            "Rule-based burnout risk triggered: academic strain rose while physical and social wellbeing dropped over the recent rolling window."
+            "Rule-based burnout risk triggered because academic strain rose while physical and social wellbeing dropped."
         )
+    if row[lowest_domain + "_score"] < 65:
+        reasons.append(f"The lowest current domain is {lowest_domain} wellbeing.")
     if row["sleep"] < 6:
         reasons.append("Sleep is below 6 hours, lowering the physical recovery signal.")
     if row["stress"] >= 8:
@@ -133,86 +176,169 @@ def explain_latest(row):
     return reasons
 
 
-raw_df = load_default_data()
+def current_dataset():
+    frames = []
+    if st.session_state.include_studentlife:
+        frames.append(load_default_data())
+    if st.session_state.uploaded_df is not None:
+        frames.append(st.session_state.uploaded_df)
+    if not st.session_state.manual_df.empty:
+        frames.append(st.session_state.manual_df)
+
+    if not frames:
+        return pd.DataFrame(columns=REQUIRED_COLUMNS)
+    return pd.concat(frames, ignore_index=True)
+
+
+def add_manual_entry(entry):
+    new_row = pd.DataFrame([entry])
+    st.session_state.manual_df = pd.concat([st.session_state.manual_df, new_row], ignore_index=True)
+
+
+if "manual_df" not in st.session_state:
+    st.session_state.manual_df = pd.DataFrame(columns=REQUIRED_COLUMNS)
+if "uploaded_df" not in st.session_state:
+    st.session_state.uploaded_df = None
+if "include_studentlife" not in st.session_state:
+    st.session_state.include_studentlife = True
+
 
 st.title("Personal Wellbeing Time-Series Monitor")
-st.caption("KAUST-aligned research prototype using StudentLife daily sensing and self-report signals.")
+st.caption("One Streamlit app for data entry, StudentLife analysis, explainable risk feedback, and CSV export.")
 
-uploaded_file = st.sidebar.file_uploader("Upload processed CSV", type=["csv"])
-if uploaded_file is not None:
-    raw_df = pd.read_csv(uploaded_file)
+with st.sidebar:
+    st.header("Data")
+    st.checkbox("Include StudentLife processed data", key="include_studentlife")
+    uploaded_file = st.file_uploader("Upload processed CSV", type=["csv"])
+    if uploaded_file is not None:
+        st.session_state.uploaded_df = pd.read_csv(uploaded_file)
+        st.success("Uploaded CSV added.")
+    if st.button("Load 21-day manual demo"):
+        st.session_state.manual_df = build_sample_entries()
+        st.success("Demo entries loaded.")
+    if st.button("Clear manual entries"):
+        st.session_state.manual_df = pd.DataFrame(columns=REQUIRED_COLUMNS)
+        st.success("Manual entries cleared.")
 
-df = add_rule_engine(add_scores(clean_data(raw_df))) if not raw_df.empty else pd.DataFrame()
+raw_df = current_dataset()
+df = add_rule_engine(add_scores(clean_data(raw_df)))
 
-if df.empty:
-    st.info("Add `data/studentlife_wellbeing.csv` or upload a processed CSV to begin.")
-    st.stop()
+dashboard_tab, entry_tab, data_tab = st.tabs(["Research Dashboard", "Daily Entry", "Data and Export"])
 
-students = sorted(df["student_id"].dropna().unique())
-selected_student = st.sidebar.selectbox("Student", students)
-student_df = df[df["student_id"] == selected_student].sort_values("date").copy()
-latest = student_df.iloc[-1]
+with dashboard_tab:
+    if df.empty:
+        st.info("Add manual entries, upload a processed CSV, or include the StudentLife processed dataset.")
+    else:
+        students = sorted(df["student_id"].dropna().unique())
+        selected_student = st.selectbox("Student time series", students)
+        student_df = df[df["student_id"] == selected_student].sort_values("date").copy()
+        latest = student_df.iloc[-1]
 
-score_delta = None
-if len(student_df) > 1:
-    score_delta = latest["wellbeing_score"] - student_df.iloc[-2]["wellbeing_score"]
+        score_delta = None
+        if len(student_df) > 1:
+            score_delta = latest["wellbeing_score"] - student_df.iloc[-2]["wellbeing_score"]
 
-metric_1, metric_2, metric_3, metric_4 = st.columns(4)
-metric_1.metric("Latest wellbeing", f"{latest['wellbeing_score']:.1f}", None if score_delta is None else f"{score_delta:+.1f}")
-metric_2.metric("Risk status", latest["status"])
-metric_3.metric("Entries", len(student_df))
-metric_4.metric("Burnout flags", int(student_df["burnout_risk"].sum()))
+        metric_1, metric_2, metric_3, metric_4 = st.columns(4)
+        metric_1.metric(
+            "Latest wellbeing",
+            f"{latest['wellbeing_score']:.1f}",
+            None if score_delta is None else f"{score_delta:+.1f}",
+        )
+        metric_2.metric("Risk status", latest["status"])
+        metric_3.metric("Entries", len(student_df))
+        metric_4.metric("Burnout flags", int(student_df["burnout_risk"].sum()))
 
-domain_columns = [
-    "physical_score",
-    "mental_score",
-    "social_score",
-    "occupational_score",
-    "digital_score",
-]
+        st.subheader("Domain Timeline")
+        timeline_df = student_df.set_index("date")[DOMAIN_COLUMNS + ["wellbeing_score"]]
+        st.line_chart(timeline_df)
 
-st.subheader("Domain Timeline")
-timeline_df = student_df.set_index("date")[domain_columns + ["wellbeing_score"]]
-st.line_chart(timeline_df)
+        left, right = st.columns([1, 1])
+        with left:
+            st.subheader("Latest Domain Scores")
+            latest_domains = latest[DOMAIN_COLUMNS].rename(
+                {
+                    "physical_score": "Physical",
+                    "mental_score": "Mental",
+                    "social_score": "Social",
+                    "occupational_score": "Occupational",
+                    "digital_score": "Digital",
+                }
+            )
+            st.bar_chart(latest_domains)
 
-left, right = st.columns([1, 1])
+        with right:
+            st.subheader("Explainable Risk Feedback")
+            for reason in explain_latest(latest):
+                st.write(f"- {reason}")
 
-with left:
-    st.subheader("Latest Domain Scores")
-    latest_domains = latest[domain_columns].rename(
-        {
-            "physical_score": "Physical",
-            "mental_score": "Mental",
-            "social_score": "Social",
-            "occupational_score": "Occupational",
-            "digital_score": "Digital",
-        }
-    )
-    st.bar_chart(latest_domains)
+        st.subheader("Burnout Risk Overlay")
+        risk_days = student_df[student_df["burnout_risk"]][
+            ["date", "wellbeing_score", "strain_change", "physical_drop", "social_drop"]
+        ]
+        if risk_days.empty:
+            st.write("No rule-based burnout risk days were detected for this student.")
+        else:
+            st.dataframe(risk_days, use_container_width=True, hide_index=True)
 
-with right:
-    st.subheader("Explainable Risk Feedback")
-    for reason in explain_latest(latest):
-        st.write(f"- {reason}")
+        st.subheader("Correlation Snapshot")
+        corr = student_df[DOMAIN_COLUMNS + ["wellbeing_score"]].corr().round(2)
+        st.dataframe(corr, use_container_width=True)
 
-st.subheader("Burnout Risk Overlay")
-risk_days = student_df[student_df["burnout_risk"]][["date", "wellbeing_score", "strain_change", "physical_drop", "social_drop"]]
-if risk_days.empty:
-    st.write("No rule-based burnout risk days were detected for this student.")
-else:
-    st.dataframe(risk_days, use_container_width=True, hide_index=True)
+with entry_tab:
+    st.subheader("Record a Daily Wellbeing Entry")
+    with st.form("manual_entry_form"):
+        col_1, col_2, col_3 = st.columns(3)
+        with col_1:
+            student_id = st.text_input("Student ID", value="manual")
+            entry_date = st.date_input("Date", value=date.today())
+            sleep = st.number_input("Sleep hours", min_value=0.0, max_value=14.0, value=7.0, step=0.5)
+        with col_2:
+            stress = st.slider("Stress level", 1, 10, 5)
+            mood = st.slider("Mood", 1, 10, 7)
+            energy = st.slider("Energy", 1, 10, 7)
+        with col_3:
+            screen_time = st.number_input("Screen time hours", min_value=0.0, max_value=24.0, value=5.0, step=0.5)
+            work_hours = st.number_input("Study/work hours", min_value=0.0, max_value=24.0, value=6.0, step=0.5)
+            activity = st.number_input("Activity minutes", min_value=0.0, max_value=240.0, value=30.0, step=5.0)
+            social = st.slider("Social connection", 1, 10, 7)
 
-st.subheader("Correlation Snapshot")
-corr = student_df[domain_columns + ["wellbeing_score"]].corr().round(2)
-st.dataframe(corr, use_container_width=True)
+        submitted = st.form_submit_button("Add entry")
+        if submitted:
+            add_manual_entry(
+                {
+                    "student_id": student_id.strip() or "manual",
+                    "date": entry_date,
+                    "sleep": sleep,
+                    "stress": stress,
+                    "mood": mood,
+                    "energy": energy,
+                    "screenTime": screen_time,
+                    "workHours": work_hours,
+                    "activity": activity,
+                    "social": social,
+                }
+            )
+            st.success("Entry added. Open the Research Dashboard tab to see the updated score.")
 
-st.subheader("Processed Daily Data")
-st.dataframe(student_df, use_container_width=True, hide_index=True)
+    st.subheader("Manual Entries")
+    if st.session_state.manual_df.empty:
+        st.write("No manual entries yet.")
+    else:
+        st.dataframe(st.session_state.manual_df, use_container_width=True, hide_index=True)
 
-csv = student_df.to_csv(index=False).encode("utf-8")
-st.download_button(
-    "Download selected student CSV",
-    data=csv,
-    file_name=f"{selected_student}_wellbeing_timeseries.csv",
-    mime="text/csv",
-)
+with data_tab:
+    st.subheader("Processed Dataset")
+    if df.empty:
+        st.write("No data available yet.")
+    else:
+        st.write(f"{len(df):,} rows across {df['student_id'].nunique():,} student time series.")
+        st.dataframe(df, use_container_width=True, hide_index=True)
+        st.download_button(
+            "Download combined processed CSV",
+            data=df.to_csv(index=False).encode("utf-8"),
+            file_name="combined_wellbeing_timeseries.csv",
+            mime="text/csv",
+        )
+
+    st.subheader("Expected CSV Format")
+    st.code(",".join(REQUIRED_COLUMNS), language="text")
