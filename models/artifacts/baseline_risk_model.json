@@ -1,0 +1,65 @@
+{
+  "model_type": "standard-library-logistic-regression",
+  "task": "predict wellbeing risk where risk = wellbeing_score < 70",
+  "features": [
+    "sleep",
+    "stress",
+    "mood",
+    "energy",
+    "screenTime",
+    "workHours",
+    "activity",
+    "social"
+  ],
+  "normalization": {
+    "sleep": {
+      "mean": 7.166236811254397,
+      "std": 1.5366726970692508
+    },
+    "stress": {
+      "mean": 3.8925263774912073,
+      "std": 1.9711726253529407
+    },
+    "mood": {
+      "mean": 6.123300117233295,
+      "std": 1.742979355642785
+    },
+    "energy": {
+      "mean": 6.617643610785463,
+      "std": 1.3057158424647373
+    },
+    "screenTime": {
+      "mean": 5.143933177022274,
+      "std": 1.80890434806129
+    },
+    "workHours": {
+      "mean": 5.802022274325909,
+      "std": 2.4467671355652234
+    },
+    "activity": {
+      "mean": 9.54290738569754,
+      "std": 10.545995644696816
+    },
+    "social": {
+      "mean": 4.8874853458382175,
+      "std": 1.9894457469140023
+    }
+  },
+  "weights": [
+    -0.9593037839064569,
+    2.4157902985939366,
+    -0.478047154158299,
+    -2.1080328283342205,
+    0.5415656715038116,
+    0.9635218103147059,
+    -0.9610602444591463,
+    -1.7586043351326885
+  ],
+  "bias": 0.24528079730950172,
+  "metrics": {
+    "accuracy": 0.943,
+    "precision": 0.958,
+    "recall": 0.927
+  },
+  "rows_used": 3412
+}

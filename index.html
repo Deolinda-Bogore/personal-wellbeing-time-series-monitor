@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Personal Wellbeing Time-Series Monitoring App</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <aside class="sidebar">
+        <div>
+          <p class="eyebrow">Research prototype</p>
+          <h1>Personal Wellbeing Time-Series Monitoring App</h1>
+          <p class="lede">
+            A digital-health prototype that records daily wellbeing signals,
+            tracks them over time, and explains early risk patterns.
+          </p>
+        </div>
+
+        <section class="summary-panel">
+          <p class="panel-label">Today</p>
+          <div class="score-row">
+            <span id="todayScore" class="score">--</span>
+            <span id="riskBadge" class="risk-badge">No data</span>
+          </div>
+          <p id="todayMessage" class="muted">
+            Add an entry or load sample data to begin.
+          </p>
+        </section>
+
+        <div class="actions">
+          <button id="loadSampleBtn" class="button primary" type="button">
+            Load sample data
+          </button>
+          <button id="exportCsvBtn" class="button ghost" type="button">
+            Export CSV
+          </button>
+          <button id="importCsvBtn" class="button ghost" type="button">
+            Import CSV
+          </button>
+          <input id="importCsvInput" class="file-input" type="file" accept=".csv,text/csv" />
+          <button id="clearDataBtn" class="button ghost" type="button">
+            Clear entries
+          </button>
+        </div>
+      </aside>
+
+      <section class="workspace">
+        <section class="entry-card">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Daily entry</p>
+              <h2>Record wellbeing signals</h2>
+            </div>
+            <span class="chip">Local browser storage</span>
+          </div>
+
+          <div class="filter-row">
+            <label>
+              Student time series
+              <select id="studentSelect">
+                <option value="all">All students</option>
+              </select>
+            </label>
+          </div>
+
+          <form id="entryForm" class="entry-form">
+            <label>
+              Date
+              <input id="date" name="date" type="date" required />
+            </label>
+            <label>
+              Sleep hours
+              <input id="sleep" name="sleep" type="number" min="0" max="14" step="0.5" value="7" required />
+            </label>
+            <label>
+              Stress level
+              <input id="stress" name="stress" type="range" min="1" max="10" value="5" />
+              <span id="stressValue" class="range-value">5</span>
+            </label>
+            <label>
+              Mood score
+              <input id="mood" name="mood" type="range" min="1" max="10" value="6" />
+              <span id="moodValue" class="range-value">6</span>
+            </label>
+            <label>
+              Energy level
+              <input id="energy" name="energy" type="range" min="1" max="10" value="6" />
+              <span id="energyValue" class="range-value">6</span>
+            </label>
+            <label>
+              Screen time hours
+              <input id="screenTime" name="screenTime" type="number" min="0" max="24" step="0.5" value="6" required />
+            </label>
+            <label>
+              Study/work hours
+              <input id="workHours" name="workHours" type="number" min="0" max="24" step="0.5" value="6" required />
+            </label>
+            <label>
+              Physical activity minutes
+              <input id="activity" name="activity" type="number" min="0" max="300" step="5" value="30" required />
+            </label>
+            <label>
+              Social connection
+              <input id="social" name="social" type="range" min="1" max="10" value="6" />
+              <span id="socialValue" class="range-value">6</span>
+            </label>
+            <button class="button primary wide" type="submit">Save entry</button>
+          </form>
+        </section>
+
+        <section class="dashboard-grid">
+          <article class="metric-card">
+            <p class="panel-label">Average wellbeing</p>
+            <strong id="avgScore">--</strong>
+            <span id="entryCount">0 entries</span>
+          </article>
+          <article class="metric-card">
+            <p class="panel-label">Stress trend</p>
+            <strong id="stressTrend">--</strong>
+            <span>last 7 days</span>
+          </article>
+          <article class="metric-card">
+            <p class="panel-label">Sleep trend</p>
+            <strong id="sleepTrend">--</strong>
+            <span>last 7 days</span>
+          </article>
+        </section>
+
+        <section class="domain-card">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Domain scores</p>
+              <h2>Physical, mental, social, occupational, and digital wellbeing</h2>
+            </div>
+          </div>
+          <div class="domain-grid">
+            <article>
+              <span>Physical</span>
+              <strong id="physicalScore">--</strong>
+            </article>
+            <article>
+              <span>Mental</span>
+              <strong id="mentalScore">--</strong>
+            </article>
+            <article>
+              <span>Social</span>
+              <strong id="socialScore">--</strong>
+            </article>
+            <article>
+              <span>Occupational</span>
+              <strong id="occupationalScore">--</strong>
+            </article>
+            <article>
+              <span>Digital</span>
+              <strong id="digitalScore">--</strong>
+            </article>
+          </div>
+        </section>
+
+        <section class="chart-card">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Time-series view</p>
+              <h2>Wellbeing over time</h2>
+            </div>
+          </div>
+          <div id="chart" class="chart" aria-label="Wellbeing trend chart"></div>
+        </section>
+
+        <section class="insight-card">
+          <div>
+            <p class="eyebrow">Explanation</p>
+            <h2>Why the score changed</h2>
+          </div>
+          <ul id="explanations" class="explanations">
+            <li>Add data to generate an explanation.</li>
+          </ul>
+        </section>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>
