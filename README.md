@@ -2,7 +2,7 @@
 
 A digital-health research prototype for tracking personal wellbeing signals over time, calculating domain-level scores, detecting early risk patterns, and preparing data for machine learning experiments.
 
-This project was built as preparation for KAUST's **Wholebeing Digital Twin** research direction, which combines machine learning, smartphone and wearable sensing, self-reports, time-series modeling, and context-aware wellbeing analysis.
+This project explores how machine learning, smartphone and wearable-style sensing, self-reports, time-series modeling, and context-aware analysis can support personal wellbeing monitoring.
 
 ## Project Goal
 
@@ -18,11 +18,9 @@ The app tracks signals related to:
 
 It then uses those signals to produce a wellbeing score, domain scores, a time-series chart, and explainable risk feedback.
 
-## Why This Matches the KAUST Project
+## Research Direction
 
-The KAUST **Wholebeing Digital Twin** project focuses on fusing multimodal data from wearables, smartphones, and short self-reports across interconnected life domains.
-
-This prototype aligns with that project because it demonstrates:
+This prototype focuses on fusing multimodal wellbeing signals across interconnected life domains. It demonstrates:
 
 1. **Daily data collection** through self-report and phone-like signals.
 2. **Domain-level scoring** across physical, mental, social, occupational, and digital wellbeing.
