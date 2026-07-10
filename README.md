@@ -30,7 +30,7 @@ This prototype aligns with that project because it demonstrates:
 4. **Explainable risk feedback** showing why wellbeing may be declining.
 5. **Public dataset preparation** using the Dartmouth StudentLife dataset.
 6. **EDA and data quality checks** before modeling.
-7. **Baseline model training** for wellbeing-risk prediction.
+7. **Baseline and stronger model training** for wellbeing-risk prediction.
 
 ## Current Features
 
@@ -46,6 +46,7 @@ This prototype aligns with that project because it demonstrates:
 - Prepare StudentLife data for the app.
 - Generate an EDA report for the processed dataset.
 - Train a baseline wellbeing-risk model.
+- Train a stronger next-day risk model with lag features and rolling averages.
 
 ## App Fields
 
@@ -200,6 +201,22 @@ risk = wellbeing_score < 70
 
 This is a first machine-learning baseline. It is intentionally simple and uses only Python's standard library so it can run without installing pandas, NumPy, or scikit-learn.
 
+To train the stronger scikit-learn model:
+
+```bash
+python3 models/train_wellbeing_model.py data/studentlife_wellbeing.csv
+```
+
+This model predicts next-day wellbeing risk using current-day signals, domain scores, lag features, and rolling averages. It uses a student-level train/test split so the test set contains held-out students.
+
+The stronger model creates:
+
+```text
+models/artifacts/wellbeing_risk_model.joblib
+models/artifacts/wellbeing_risk_metrics.json
+models/artifacts/wellbeing_feature_importance.csv
+```
+
 ## Current Processed Dataset and Baseline Results
 
 Using the StudentLife dataset, the current preprocessing pipeline produced:
@@ -217,7 +234,17 @@ Precision: 0.958
 Recall: 0.927
 ```
 
-These metrics are for a prototype risk label derived from the project wellbeing score, not a clinical label.
+The stronger Random Forest next-day risk model produced:
+
+```text
+Accuracy: 0.786
+Precision: 0.814
+Recall: 0.717
+F1: 0.763
+ROC-AUC: 0.846
+```
+
+These metrics are for a prototype risk label derived from the project wellbeing score, not a clinical label. The stronger model is harder and more realistic than the baseline because it predicts next-day risk for held-out students.
 
 ## Training Pipeline
 
