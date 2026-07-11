@@ -1,0 +1,223 @@
+{
+  "rows": 3412,
+  "students": 49,
+  "date_range": {
+    "start": "2013-03-25",
+    "end": "2013-08-16"
+  },
+  "risk_rows": 1771,
+  "risk_rate": 0.519,
+  "mean_wellbeing": 68.968,
+  "median_wellbeing": 69.59,
+  "domain_means": {
+    "physical_score": 61.922,
+    "mental_score": 65.304,
+    "social_score": 48.875,
+    "occupational_score": 82.669,
+    "digital_score": 87.797
+  },
+  "raw_feature_summary": {
+    "sleep": {
+      "count": 3412.0,
+      "mean": 7.166,
+      "std": 1.537,
+      "min": 0.0,
+      "25%": 6.4,
+      "50%": 7.1,
+      "75%": 8.0,
+      "max": 14.0
+    },
+    "stress": {
+      "count": 3412.0,
+      "mean": 3.893,
+      "std": 1.971,
+      "min": 1.0,
+      "25%": 2.8,
+      "50%": 3.6,
+      "75%": 5.2,
+      "max": 10.0
+    },
+    "mood": {
+      "count": 3412.0,
+      "mean": 6.123,
+      "std": 1.743,
+      "min": 1.0,
+      "25%": 5.5,
+      "50%": 5.5,
+      "75%": 7.8,
+      "max": 10.0
+    },
+    "energy": {
+      "count": 3412.0,
+      "mean": 6.618,
+      "std": 1.306,
+      "min": 1.8,
+      "25%": 5.8,
+      "50%": 6.7,
+      "75%": 7.6,
+      "max": 10.0
+    },
+    "screenTime": {
+      "count": 3412.0,
+      "mean": 5.144,
+      "std": 1.809,
+      "min": 1.9,
+      "25%": 4.0,
+      "50%": 5.0,
+      "75%": 6.0,
+      "max": 10.0
+    },
+    "workHours": {
+      "count": 3412.0,
+      "mean": 5.802,
+      "std": 2.447,
+      "min": 4.5,
+      "25%": 4.5,
+      "50%": 4.5,
+      "75%": 6.0,
+      "max": 14.0
+    },
+    "activity": {
+      "count": 3412.0,
+      "mean": 9.543,
+      "std": 10.548,
+      "min": 0.0,
+      "25%": 2.8,
+      "50%": 7.9,
+      "75%": 13.2,
+      "max": 180.0
+    },
+    "social": {
+      "count": 3412.0,
+      "mean": 4.887,
+      "std": 1.99,
+      "min": 1.0,
+      "25%": 3.6,
+      "50%": 4.7,
+      "75%": 6.2,
+      "max": 10.0
+    }
+  },
+  "top_risk_students": [
+    {
+      "student_id": "u07",
+      "days": 71,
+      "risk_rate": 0.986,
+      "mean_wellbeing": 56.126
+    },
+    {
+      "student_id": "u17",
+      "days": 71,
+      "risk_rate": 0.986,
+      "mean_wellbeing": 53.998
+    },
+    {
+      "student_id": "u05",
+      "days": 71,
+      "risk_rate": 0.972,
+      "mean_wellbeing": 63.515
+    },
+    {
+      "student_id": "u33",
+      "days": 71,
+      "risk_rate": 0.958,
+      "mean_wellbeing": 58.948
+    },
+    {
+      "student_id": "u45",
+      "days": 71,
+      "risk_rate": 0.93,
+      "mean_wellbeing": 61.761
+    },
+    {
+      "student_id": "u18",
+      "days": 71,
+      "risk_rate": 0.93,
+      "mean_wellbeing": 63.134
+    },
+    {
+      "student_id": "u13",
+      "days": 71,
+      "risk_rate": 0.901,
+      "mean_wellbeing": 66.714
+    },
+    {
+      "student_id": "u31",
+      "days": 71,
+      "risk_rate": 0.887,
+      "mean_wellbeing": 64.199
+    },
+    {
+      "student_id": "u03",
+      "days": 71,
+      "risk_rate": 0.873,
+      "mean_wellbeing": 64.896
+    },
+    {
+      "student_id": "u42",
+      "days": 71,
+      "risk_rate": 0.873,
+      "mean_wellbeing": 66.05
+    },
+    {
+      "student_id": "u25",
+      "days": 71,
+      "risk_rate": 0.873,
+      "mean_wellbeing": 65.161
+    },
+    {
+      "student_id": "u49",
+      "days": 71,
+      "risk_rate": 0.873,
+      "mean_wellbeing": 60.063
+    },
+    {
+      "student_id": "u54",
+      "days": 71,
+      "risk_rate": 0.845,
+      "mean_wellbeing": 67.225
+    },
+    {
+      "student_id": "u27",
+      "days": 71,
+      "risk_rate": 0.817,
+      "mean_wellbeing": 66.794
+    },
+    {
+      "student_id": "u09",
+      "days": 71,
+      "risk_rate": 0.803,
+      "mean_wellbeing": 67.188
+    },
+    {
+      "student_id": "u35",
+      "days": 71,
+      "risk_rate": 0.761,
+      "mean_wellbeing": 66.321
+    },
+    {
+      "student_id": "u59",
+      "days": 73,
+      "risk_rate": 0.753,
+      "mean_wellbeing": 66.051
+    },
+    {
+      "student_id": "u22",
+      "days": 71,
+      "risk_rate": 0.746,
+      "mean_wellbeing": 67.088
+    },
+    {
+      "student_id": "u56",
+      "days": 62,
+      "risk_rate": 0.742,
+      "mean_wellbeing": 66.978
+    },
+    {
+      "student_id": "u12",
+      "days": 71,
+      "risk_rate": 0.704,
+      "mean_wellbeing": 67.734
+    }
+  ]
+}

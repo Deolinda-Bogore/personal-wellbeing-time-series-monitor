@@ -166,6 +166,22 @@ The EDA report includes:
 - wellbeing and domain-score summaries
 - feature correlations with the wellbeing score
 
+For a richer visual EDA report:
+
+```bash
+python3 scripts/enhanced_eda.py data/studentlife_wellbeing.csv
+```
+
+This creates:
+
+```text
+reports/enhanced_eda_report.md
+reports/enhanced_eda_summary.json
+reports/figures/
+```
+
+The enhanced EDA includes wellbeing-score distribution, domain-score correlations, raw feature distributions, student-level risk-day rates, and sample student timelines.
+
 ## How to Start Model Training
 
 First, make sure you have an app-ready CSV. The easiest path is:
@@ -212,6 +228,19 @@ models/artifacts/wellbeing_risk_metrics.json
 models/artifacts/wellbeing_feature_importance.csv
 ```
 
+To compare Logistic Regression and Random Forest on the same next-day prediction task:
+
+```bash
+python3 models/compare_models.py data/studentlife_wellbeing.csv
+```
+
+This creates:
+
+```text
+models/artifacts/model_comparison.csv
+models/artifacts/model_comparison.json
+```
+
 ## Current Processed Dataset and Baseline Results
 
 Using the StudentLife dataset, the current preprocessing pipeline produced:
@@ -237,6 +266,14 @@ Precision: 0.814
 Recall: 0.717
 F1: 0.763
 ROC-AUC: 0.846
+```
+
+The fair next-day model comparison produced:
+
+```text
+Model                 Accuracy  Precision  Recall  F1     ROC-AUC
+Random Forest          0.786      0.814    0.717  0.763   0.846
+Logistic Regression    0.778      0.827    0.677  0.745   0.844
 ```
 
 These metrics are for a prototype risk label derived from the project wellbeing score, not a clinical label. The stronger model is harder and more realistic than the baseline because it predicts next-day risk for held-out students.

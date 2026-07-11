@@ -62,3 +62,27 @@ ROC-AUC: 0.846
 ```
 
 The train/test split holds out students, not just random rows, so the evaluation better tests whether the model generalizes across people.
+
+## Model Comparison
+
+To compare Logistic Regression and Random Forest on the same next-day risk task:
+
+```bash
+python3 models/compare_models.py data/studentlife_wellbeing.csv
+```
+
+Outputs:
+
+```text
+models/artifacts/model_comparison.csv
+models/artifacts/model_comparison.json
+```
+
+Current comparison:
+
+| Model | Accuracy | Precision | Recall | F1 | ROC-AUC |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Random Forest | 0.786 | 0.814 | 0.717 | 0.763 | 0.846 |
+| Logistic Regression | 0.778 | 0.827 | 0.677 | 0.745 | 0.844 |
+
+Random Forest performs slightly better overall, especially on recall and F1, while Logistic Regression remains useful as an interpretable baseline.
