@@ -83,7 +83,7 @@ The dashboard combines data entry, analysis, and export in one interface. It let
 
 ## Research Notebook
 
-The project includes a research notebook that walks through the full workflow:
+The project includes a Colab-friendly research notebook that uses the processed CSV already stored in this repository:
 
 ```text
 notebooks/personal_wellbeing_studentlife_pipeline.ipynb
@@ -95,11 +95,12 @@ Open it in Google Colab:
 
 The notebook covers:
 
-- raw StudentLife data ingestion
-- schema mapping from raw files to five wellbeing domains
-- daily alignment of asynchronous EMA and sensing streams
+- loading the processed StudentLife daily CSV directly from GitHub
+- schema mapping from daily features to five wellbeing domains
 - domain scoring and normalization
 - rule-based burnout risk detection
+- lag and rolling-window feature engineering
+- next-day risk modeling with a student-level train/test split
 - EDA visualizations
 - clean CSV export for future ML experiments
 
@@ -115,11 +116,7 @@ Open the notebook:
 jupyter notebook notebooks/personal_wellbeing_studentlife_pipeline.ipynb
 ```
 
-If your dataset is not in `~/Downloads/dataset.zip`, set:
-
-```bash
-export STUDENTLIFE_ZIP=/path/to/dataset.zip
-```
+In Google Colab, no `dataset.zip` upload is required for this notebook. It loads `data/studentlife_wellbeing.csv` from the GitHub repository.
 
 ## Data Preprocessing
 
