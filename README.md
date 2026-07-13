@@ -40,6 +40,7 @@ This prototype focuses on fusing multimodal wellbeing signals across interconnec
 - View physical, mental, social, occupational, and digital domain scores.
 - Visualize wellbeing trends over time.
 - Explain which factors may be contributing to risk.
+- Display a deployed Random Forest next-day risk prediction.
 - Export entries and calculated scores as CSV.
 - Prepare StudentLife data for the app.
 - Generate an EDA report for the processed dataset.
@@ -77,6 +78,7 @@ The dashboard combines data entry, analysis, and export in one interface. It let
 - upload processed CSV files
 - view wellbeing and domain timelines
 - inspect rule-based burnout-risk flags
+- view the deployed Random Forest next-day risk prediction
 - read explainable feedback for the latest entry
 - review correlations between wellbeing domains
 - download the combined processed time-series CSV

@@ -6,6 +6,7 @@ import streamlit as st
 
 
 DATA_PATH = Path(__file__).resolve().parent / "data" / "studentlife_wellbeing.csv"
+MODEL_PATH = Path(__file__).resolve().parent / "models" / "artifacts" / "wellbeing_risk_model.joblib"
 REQUIRED_COLUMNS = [
     "student_id",
     "date",
@@ -25,6 +26,7 @@ DOMAIN_COLUMNS = [
     "occupational_score",
     "digital_score",
 ]
+MODEL_BASE_COLUMNS = REQUIRED_COLUMNS[2:] + DOMAIN_COLUMNS + ["wellbeing_score"]
 
 
 st.set_page_config(
@@ -43,6 +45,17 @@ def load_default_data():
     if not DATA_PATH.exists():
         return pd.DataFrame(columns=REQUIRED_COLUMNS)
     return pd.read_csv(DATA_PATH)
+
+
+@st.cache_resource
+def load_model_artifact():
+    if not MODEL_PATH.exists():
+        return None
+    try:
+        import joblib
+    except ImportError:
+        return None
+    return joblib.load(MODEL_PATH)
 
 
 def build_sample_entries():
@@ -150,6 +163,53 @@ def add_rule_engine(df):
     return scored
 
 
+def add_model_features(df):
+    if df.empty:
+        return df
+
+    feature_df = df.copy().sort_values(["student_id", "date"]).reset_index(drop=True)
+    feature_df["day_of_week"] = feature_df["date"].dt.dayofweek
+    feature_df["days_since_student_start"] = (
+        feature_df["date"] - feature_df.groupby("student_id")["date"].transform("min")
+    ).dt.days
+
+    for column in MODEL_BASE_COLUMNS:
+        grouped = feature_df.groupby("student_id")[column]
+        for lag in [1, 2, 3]:
+            feature_df[f"{column}_lag_{lag}"] = grouped.shift(lag)
+        for window in [3, 7]:
+            feature_df[f"{column}_rolling_{window}"] = grouped.transform(
+                lambda values: values.rolling(window, min_periods=2).mean()
+            )
+
+    return feature_df
+
+
+def predict_next_day_risk(model_artifact, feature_df, selected_student):
+    if model_artifact is None or feature_df.empty:
+        return None
+
+    metadata = model_artifact.get("metadata", {})
+    feature_columns = metadata.get("features", [])
+    pipeline = model_artifact.get("pipeline")
+    if pipeline is None or not feature_columns:
+        return None
+
+    student_rows = feature_df[feature_df["student_id"] == selected_student].sort_values("date")
+    if student_rows.empty:
+        return None
+
+    latest_features = student_rows.iloc[[-1]][feature_columns]
+    probability = float(pipeline.predict_proba(latest_features)[0, 1])
+    prediction = int(probability >= 0.5)
+    return {
+        "prediction": prediction,
+        "probability": probability,
+        "label": "Elevated risk" if prediction else "Lower risk",
+        "metadata": metadata,
+    }
+
+
 def explain_latest(row):
     reasons = []
     lowest_domain = row[DOMAIN_COLUMNS].astype(float).idxmin().replace("_score", "")
@@ -174,6 +234,29 @@ def explain_latest(row):
     if not reasons:
         reasons.append("No major risk driver dominates the latest entry; domain signals are relatively balanced.")
     return reasons
+
+
+def explain_model_prediction(prediction):
+    if prediction is None:
+        return [
+            "Model artifact is not available yet. Train the Random Forest model or install the project requirements."
+        ]
+
+    probability = prediction["probability"]
+    if probability >= 0.7:
+        return [
+            f"The Random Forest model estimates a high next-day risk probability ({probability:.1%}).",
+            "This prediction uses current signals plus lag and rolling-window features from recent days.",
+        ]
+    if probability >= 0.5:
+        return [
+            f"The Random Forest model estimates elevated next-day risk ({probability:.1%}).",
+            "The result is close enough to the threshold that recent patterns should be reviewed alongside the rule-based explanation.",
+        ]
+    return [
+        f"The Random Forest model estimates lower next-day risk ({probability:.1%}).",
+        "This is a prototype prediction based on the processed wellbeing score, not a clinical assessment.",
+    ]
 
 
 def current_dataset():
@@ -222,6 +305,8 @@ with st.sidebar:
 
 raw_df = current_dataset()
 df = add_rule_engine(add_scores(clean_data(raw_df)))
+model_feature_df = add_model_features(df)
+model_artifact = load_model_artifact()
 
 dashboard_tab, entry_tab, data_tab = st.tabs(["Research Dashboard", "Daily Entry", "Data and Export"])
 
@@ -233,12 +318,13 @@ with dashboard_tab:
         selected_student = st.selectbox("Student time series", students)
         student_df = df[df["student_id"] == selected_student].sort_values("date").copy()
         latest = student_df.iloc[-1]
+        model_prediction = predict_next_day_risk(model_artifact, model_feature_df, selected_student)
 
         score_delta = None
         if len(student_df) > 1:
             score_delta = latest["wellbeing_score"] - student_df.iloc[-2]["wellbeing_score"]
 
-        metric_1, metric_2, metric_3, metric_4 = st.columns(4)
+        metric_1, metric_2, metric_3, metric_4, metric_5 = st.columns(5)
         metric_1.metric(
             "Latest wellbeing",
             f"{latest['wellbeing_score']:.1f}",
@@ -247,6 +333,10 @@ with dashboard_tab:
         metric_2.metric("Risk status", latest["status"])
         metric_3.metric("Entries", len(student_df))
         metric_4.metric("Burnout flags", int(student_df["burnout_risk"].sum()))
+        if model_prediction is None:
+            metric_5.metric("Model next-day risk", "Unavailable")
+        else:
+            metric_5.metric("Model next-day risk", model_prediction["label"], f"{model_prediction['probability']:.1%}")
 
         st.subheader("Domain Timeline")
         timeline_df = student_df.set_index("date")[DOMAIN_COLUMNS + ["wellbeing_score"]]
@@ -270,6 +360,17 @@ with dashboard_tab:
             st.subheader("Explainable Risk Feedback")
             for reason in explain_latest(latest):
                 st.write(f"- {reason}")
+
+            st.subheader("Model Prediction")
+            for reason in explain_model_prediction(model_prediction):
+                st.write(f"- {reason}")
+
+            if model_prediction is not None:
+                metrics = model_prediction["metadata"].get("metrics", {})
+                st.caption(
+                    "Random Forest validation: "
+                    f"F1 {metrics.get('f1', 'n/a')}, ROC-AUC {metrics.get('roc_auc', 'n/a')}"
+                )
 
         st.subheader("Burnout Risk Overlay")
         risk_days = student_df[student_df["burnout_risk"]][
