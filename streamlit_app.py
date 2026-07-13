@@ -1,3 +1,4 @@
+import os
 from datetime import date, timedelta
 from pathlib import Path
 
@@ -207,6 +208,46 @@ def predict_next_day_risk(model_artifact, feature_df, selected_student):
         "probability": probability,
         "label": "Elevated risk" if prediction else "Lower risk",
         "metadata": metadata,
+        "source": "local_model",
+    }
+
+
+def predict_next_day_risk_from_api(api_url, student_df):
+    if not api_url or student_df.empty:
+        return None
+
+    try:
+        import requests
+    except ImportError:
+        return {
+            "error": "The requests package is not installed. Run `python3 -m pip install -r requirements.txt`."
+        }
+
+    endpoint = api_url.rstrip("/") + "/predict"
+    payload = {
+        "student_id": str(student_df.iloc[-1]["student_id"]),
+        "entries": student_df[REQUIRED_COLUMNS].assign(date=student_df["date"].dt.strftime("%Y-%m-%d")).to_dict(
+            orient="records"
+        ),
+    }
+
+    try:
+        response = requests.post(endpoint, json=payload, timeout=8)
+        response.raise_for_status()
+        data = response.json()
+    except requests.RequestException as error:
+        return {"error": f"FastAPI request failed: {error}"}
+
+    return {
+        "prediction": int(data["prediction"]),
+        "probability": float(data["probability"]),
+        "label": data["label"],
+        "metadata": {
+            "model_type": data.get("model_type"),
+            "task": data.get("task"),
+            "metrics": data.get("metrics", {}),
+        },
+        "source": "fastapi",
     }
 
 
@@ -241,22 +282,47 @@ def explain_model_prediction(prediction):
         return [
             "Model artifact is not available yet. Train the Random Forest model or install the project requirements."
         ]
+    if prediction.get("error"):
+        return [prediction["error"]]
 
     probability = prediction["probability"]
+    source = "FastAPI backend" if prediction.get("source") == "fastapi" else "local model artifact"
     if probability >= 0.7:
         return [
-            f"The Random Forest model estimates a high next-day risk probability ({probability:.1%}).",
+            f"The Random Forest model estimates a high next-day risk probability ({probability:.1%}) using the {source}.",
             "This prediction uses current signals plus lag and rolling-window features from recent days.",
         ]
     if probability >= 0.5:
         return [
-            f"The Random Forest model estimates elevated next-day risk ({probability:.1%}).",
+            f"The Random Forest model estimates elevated next-day risk ({probability:.1%}) using the {source}.",
             "The result is close enough to the threshold that recent patterns should be reviewed alongside the rule-based explanation.",
         ]
     return [
-        f"The Random Forest model estimates lower next-day risk ({probability:.1%}).",
+        f"The Random Forest model estimates lower next-day risk ({probability:.1%}) using the {source}.",
         "This is a prototype prediction based on the processed wellbeing score, not a clinical assessment.",
     ]
+
+
+def render_prediction_panel(prediction):
+    st.subheader("Next-Day Risk Prediction")
+
+    if prediction is None:
+        st.info("Model prediction is unavailable. Check that the model artifact exists or start the FastAPI backend.")
+        return
+
+    if prediction.get("error"):
+        st.error(prediction["error"])
+        return
+
+    probability = prediction["probability"]
+    source = "FastAPI backend" if prediction.get("source") == "fastapi" else "local model artifact"
+    if prediction["prediction"]:
+        st.warning(f"Elevated next-day risk predicted: {probability:.1%}")
+    else:
+        st.success(f"Lower next-day risk predicted: {probability:.1%}")
+
+    st.progress(min(max(probability, 0), 1))
+    st.caption(f"Prediction source: {source}. Threshold: 50%. Model: Random Forest classifier.")
 
 
 def current_dataset():
@@ -278,12 +344,36 @@ def add_manual_entry(entry):
     st.session_state.manual_df = pd.concat([st.session_state.manual_df, new_row], ignore_index=True)
 
 
+def predict_custom_entry(entry, api_url, model_artifact):
+    context = st.session_state.manual_df.copy()
+    if not context.empty:
+        context = context[context["student_id"].astype(str) == str(entry["student_id"])]
+
+    prediction_input = pd.concat([context, pd.DataFrame([entry])], ignore_index=True)
+    scored_input = add_rule_engine(add_scores(clean_data(prediction_input)))
+    feature_input = add_model_features(scored_input)
+    selected_student = str(entry["student_id"])
+
+    prediction = (
+        predict_next_day_risk_from_api(api_url, scored_input)
+        if api_url
+        else predict_next_day_risk(model_artifact, feature_input, selected_student)
+    )
+    return prediction, scored_input
+
+
 if "manual_df" not in st.session_state:
     st.session_state.manual_df = pd.DataFrame(columns=REQUIRED_COLUMNS)
 if "uploaded_df" not in st.session_state:
     st.session_state.uploaded_df = None
 if "include_studentlife" not in st.session_state:
     st.session_state.include_studentlife = True
+if "prediction_result" not in st.session_state:
+    st.session_state.prediction_result = None
+if "prediction_scored_input" not in st.session_state:
+    st.session_state.prediction_scored_input = pd.DataFrame()
+if "prediction_entry" not in st.session_state:
+    st.session_state.prediction_entry = None
 
 
 st.title("Personal Wellbeing Time-Series Monitor")
@@ -292,6 +382,12 @@ st.caption("One Streamlit app for data entry, StudentLife analysis, explainable 
 with st.sidebar:
     st.header("Data")
     st.checkbox("Include StudentLife processed data", key="include_studentlife")
+    api_url = st.text_input(
+        "FastAPI URL",
+        value=os.environ.get("WELLBEING_API_URL", ""),
+        placeholder="http://127.0.0.1:8000",
+        help="Optional. If provided, Streamlit will request predictions from FastAPI instead of the local model.",
+    )
     uploaded_file = st.file_uploader("Upload processed CSV", type=["csv"])
     if uploaded_file is not None:
         st.session_state.uploaded_df = pd.read_csv(uploaded_file)
@@ -308,7 +404,9 @@ df = add_rule_engine(add_scores(clean_data(raw_df)))
 model_feature_df = add_model_features(df)
 model_artifact = load_model_artifact()
 
-dashboard_tab, entry_tab, data_tab = st.tabs(["Research Dashboard", "Daily Entry", "Data and Export"])
+dashboard_tab, prediction_tab, entry_tab, data_tab = st.tabs(
+    ["Research Dashboard", "Prediction", "Daily Entry", "Data and Export"]
+)
 
 with dashboard_tab:
     if df.empty:
@@ -318,7 +416,11 @@ with dashboard_tab:
         selected_student = st.selectbox("Student time series", students)
         student_df = df[df["student_id"] == selected_student].sort_values("date").copy()
         latest = student_df.iloc[-1]
-        model_prediction = predict_next_day_risk(model_artifact, model_feature_df, selected_student)
+        model_prediction = (
+            predict_next_day_risk_from_api(api_url, student_df)
+            if api_url
+            else predict_next_day_risk(model_artifact, model_feature_df, selected_student)
+        )
 
         score_delta = None
         if len(student_df) > 1:
@@ -335,8 +437,12 @@ with dashboard_tab:
         metric_4.metric("Burnout flags", int(student_df["burnout_risk"].sum()))
         if model_prediction is None:
             metric_5.metric("Model next-day risk", "Unavailable")
+        elif model_prediction.get("error"):
+            metric_5.metric("Model next-day risk", "API error")
         else:
             metric_5.metric("Model next-day risk", model_prediction["label"], f"{model_prediction['probability']:.1%}")
+
+        render_prediction_panel(model_prediction)
 
         st.subheader("Domain Timeline")
         timeline_df = student_df.set_index("date")[DOMAIN_COLUMNS + ["wellbeing_score"]]
@@ -365,10 +471,11 @@ with dashboard_tab:
             for reason in explain_model_prediction(model_prediction):
                 st.write(f"- {reason}")
 
-            if model_prediction is not None:
+            if model_prediction is not None and not model_prediction.get("error"):
                 metrics = model_prediction["metadata"].get("metrics", {})
+                source = "FastAPI" if model_prediction.get("source") == "fastapi" else "local artifact"
                 st.caption(
-                    "Random Forest validation: "
+                    f"Prediction source: {source}. Random Forest validation: "
                     f"F1 {metrics.get('f1', 'n/a')}, ROC-AUC {metrics.get('roc_auc', 'n/a')}"
                 )
 
@@ -384,6 +491,111 @@ with dashboard_tab:
         st.subheader("Correlation Snapshot")
         corr = student_df[DOMAIN_COLUMNS + ["wellbeing_score"]].corr().round(2)
         st.dataframe(corr, use_container_width=True)
+
+with prediction_tab:
+    st.subheader("Make a Next-Day Risk Prediction")
+    with st.form("quick_prediction_form"):
+        col_1, col_2, col_3 = st.columns(3)
+        with col_1:
+            pred_student_id = st.text_input("Student ID", value="manual_predict", key="pred_student_id")
+            pred_date = st.date_input("Entry date", value=date.today(), key="pred_date")
+            pred_sleep = st.number_input(
+                "Sleep hours",
+                min_value=0.0,
+                max_value=14.0,
+                value=7.0,
+                step=0.5,
+                key="pred_sleep",
+            )
+        with col_2:
+            pred_stress = st.slider("Stress level", 1, 10, 5, key="pred_stress")
+            pred_mood = st.slider("Mood", 1, 10, 7, key="pred_mood")
+            pred_energy = st.slider("Energy", 1, 10, 7, key="pred_energy")
+        with col_3:
+            pred_screen_time = st.number_input(
+                "Screen time hours",
+                min_value=0.0,
+                max_value=24.0,
+                value=5.0,
+                step=0.5,
+                key="pred_screen_time",
+            )
+            pred_work_hours = st.number_input(
+                "Study/work hours",
+                min_value=0.0,
+                max_value=24.0,
+                value=6.0,
+                step=0.5,
+                key="pred_work_hours",
+            )
+            pred_activity = st.number_input(
+                "Activity minutes",
+                min_value=0.0,
+                max_value=300.0,
+                value=30.0,
+                step=5.0,
+                key="pred_activity",
+            )
+            pred_social = st.slider("Social connection", 1, 10, 7, key="pred_social")
+
+        predict_submitted = st.form_submit_button("Predict next-day risk")
+
+    if predict_submitted:
+        entry = {
+            "student_id": pred_student_id.strip() or "manual_predict",
+            "date": pred_date,
+            "sleep": pred_sleep,
+            "stress": pred_stress,
+            "mood": pred_mood,
+            "energy": pred_energy,
+            "screenTime": pred_screen_time,
+            "workHours": pred_work_hours,
+            "activity": pred_activity,
+            "social": pred_social,
+        }
+        prediction, scored_input = predict_custom_entry(entry, api_url, model_artifact)
+        st.session_state.prediction_result = prediction
+        st.session_state.prediction_scored_input = scored_input
+        st.session_state.prediction_entry = entry
+
+    prediction = st.session_state.prediction_result
+    scored_input = st.session_state.prediction_scored_input
+    if prediction is not None and not scored_input.empty:
+        latest_prediction_row = scored_input.iloc[-1]
+        score_col, status_col, probability_col = st.columns(3)
+        score_col.metric("Current wellbeing score", f"{latest_prediction_row['wellbeing_score']:.1f}")
+        status_col.metric("Current rule status", latest_prediction_row["status"])
+        if prediction.get("error"):
+            probability_col.metric("Model probability", "Unavailable")
+        else:
+            probability_col.metric("Model probability", f"{prediction['probability']:.1%}")
+
+        render_prediction_panel(prediction)
+
+        left, right = st.columns([1, 1])
+        with left:
+            st.subheader("Input Domain Scores")
+            latest_domains = latest_prediction_row[DOMAIN_COLUMNS].rename(
+                {
+                    "physical_score": "Physical",
+                    "mental_score": "Mental",
+                    "social_score": "Social",
+                    "occupational_score": "Occupational",
+                    "digital_score": "Digital",
+                }
+            )
+            st.bar_chart(latest_domains)
+        with right:
+            st.subheader("Why This Result")
+            for reason in explain_latest(latest_prediction_row):
+                st.write(f"- {reason}")
+            for reason in explain_model_prediction(prediction):
+                st.write(f"- {reason}")
+
+        if st.session_state.prediction_entry is not None:
+            if st.button("Save this entry to Daily Entry data"):
+                add_manual_entry(st.session_state.prediction_entry)
+                st.success("Prediction entry saved.")
 
 with entry_tab:
     st.subheader("Record a Daily Wellbeing Entry")

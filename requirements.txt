@@ -5,3 +5,6 @@ seaborn
 jupyter
 streamlit
 scikit-learn
+fastapi
+uvicorn
+requests

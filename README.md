@@ -40,7 +40,9 @@ This prototype focuses on fusing multimodal wellbeing signals across interconnec
 - View physical, mental, social, occupational, and digital domain scores.
 - Visualize wellbeing trends over time.
 - Explain which factors may be contributing to risk.
-- Display a deployed Random Forest next-day risk prediction.
+- Use a dedicated prediction page to enter wellbeing signals and predict next-day risk.
+- Display Random Forest next-day risk predictions in the dashboard.
+- Optionally serve model predictions through a FastAPI backend.
 - Export entries and calculated scores as CSV.
 - Prepare StudentLife data for the app.
 - Generate an EDA report for the processed dataset.
@@ -61,27 +63,183 @@ Example:
 u00,2013-03-27,8.0,1,6.1,8.1,6.1,5.5,17.6,4.9
 ```
 
-## How to Run the App
+## How to Run Everything
+
+Start from the project folder:
+
+```bash
+cd /Users/macbookpro2020m1/personal-wellbeing-time-series-monitor
+```
+
+Install the project dependencies:
+
+```bash
+python3 -m pip install -r requirements.txt
+```
+
+### 1. Run the Streamlit App
 
 The main application is the combined Streamlit dashboard:
 
 ```bash
-python3 -m pip install -r requirements.txt
 python3 -m streamlit run streamlit_app.py
 ```
 
-The dashboard combines data entry, analysis, and export in one interface. It lets you:
+The app includes:
+
+- **Research Dashboard** for StudentLife time-series analysis
+- **Prediction** for filling one wellbeing entry and predicting next-day risk
+- **Daily Entry** for saving manual wellbeing entries
+- **Data and Export** for reviewing and downloading processed data
+
+If the FastAPI URL field in the sidebar is empty, Streamlit uses the saved local Random Forest model:
+
+```text
+models/artifacts/wellbeing_risk_model.joblib
+```
+
+### 2. Run the FastAPI Backend
+
+```bash
+python3 -m uvicorn api.main:app --reload
+```
+
+Open the API docs:
+
+```text
+http://127.0.0.1:8000/docs
+```
+
+Health check:
+
+```text
+http://127.0.0.1:8000/health
+```
+
+Then run Streamlit in another terminal:
+
+```bash
+python3 -m streamlit run streamlit_app.py
+```
+
+In the Streamlit sidebar, enter:
+
+```text
+http://127.0.0.1:8000
+```
+
+That connects the Streamlit prediction page to the FastAPI `/predict` endpoint.
+
+### 3. Run EDA
+
+Basic EDA:
+
+```bash
+python3 scripts/eda_processed_data.py data/studentlife_wellbeing.csv
+```
+
+Enhanced EDA with charts:
+
+```bash
+python3 scripts/enhanced_eda.py data/studentlife_wellbeing.csv
+```
+
+Outputs are saved in:
+
+```text
+reports/
+reports/figures/
+```
+
+### 4. Train the Models
+
+Train the baseline model:
+
+```bash
+python3 models/train_baseline.py data/studentlife_wellbeing.csv
+```
+
+Train the stronger Random Forest model:
+
+```bash
+python3 models/train_wellbeing_model.py data/studentlife_wellbeing.csv
+```
+
+Compare Logistic Regression and Random Forest:
+
+```bash
+python3 models/compare_models.py data/studentlife_wellbeing.csv
+```
+
+Model artifacts are saved in:
+
+```text
+models/artifacts/
+```
+
+### 5. Open the Research Notebook
+
+Open locally:
+
+```bash
+jupyter notebook notebooks/personal_wellbeing_studentlife_pipeline.ipynb
+```
+
+Or open in Google Colab:
+
+[Open notebook in Colab](https://colab.research.google.com/github/Deolinda-Bogore/personal-wellbeing-time-series-monitor/blob/main/notebooks/personal_wellbeing_studentlife_pipeline.ipynb)
+
+The notebook loads the processed CSV from this repository, so no `dataset.zip` upload is required in Colab.
+
+## Streamlit App Details
+
+The dashboard combines data entry, prediction, analysis, and export in one interface. It lets you:
 
 - select a StudentLife participant
+- make a new next-day risk prediction from form inputs
 - add manual daily wellbeing entries
 - load 21-day demo entries
 - upload processed CSV files
 - view wellbeing and domain timelines
 - inspect rule-based burnout-risk flags
 - view the deployed Random Forest next-day risk prediction
+- connect to an optional FastAPI prediction backend
 - read explainable feedback for the latest entry
 - review correlations between wellbeing domains
 - download the combined processed time-series CSV
+
+## Optional FastAPI Backend
+
+The Streamlit app can load the model locally, but the project also includes a FastAPI backend for a more production-style architecture:
+
+```text
+Streamlit dashboard -> FastAPI /predict endpoint -> Random Forest model artifact
+```
+
+Run the API:
+
+```bash
+python3 -m uvicorn api.main:app --reload
+```
+
+Open the API docs:
+
+```text
+http://127.0.0.1:8000/docs
+```
+
+Then run Streamlit and enter this URL in the sidebar field named **FastAPI URL**:
+
+```text
+http://127.0.0.1:8000
+```
+
+You can also set it with an environment variable:
+
+```bash
+export WELLBEING_API_URL=http://127.0.0.1:8000
+python3 -m streamlit run streamlit_app.py
+```
 
 ## Research Notebook
 
@@ -138,7 +296,7 @@ This creates:
 data/studentlife_wellbeing.csv
 ```
 
-Then open the app and click **Import CSV**.
+Then open the app and use **Upload processed CSV** in the sidebar if you want to load that file manually.
 
 The preprocessing script maps raw asynchronous StudentLife records into a compact daily time-series table with one row per student per day. It extracts and normalizes signals such as sleep, stress, mood, social connection, phone-use proxy, academic workload proxy, and activity proxy into the app schema.
 
@@ -290,15 +448,16 @@ The full data and training pipeline:
 4. Uses sleep, stress, mood, energy, screen time, work hours, activity, and social connection as model features.
 5. Calculates domain scores and an overall wellbeing score.
 6. Creates a binary risk label.
-7. Trains a logistic regression classifier.
-8. Saves the trained model and evaluation metrics.
+7. Trains a baseline logistic regression model.
+8. Trains a stronger Random Forest next-day risk model with lag and rolling-window features.
+9. Compares models on the same next-day prediction task.
+10. Saves trained model artifacts, comparison results, feature importance, and evaluation metrics.
 
 ## Future ML Improvements
 
 The next research steps are:
 
-- Add lag features, such as previous-day stress and 7-day sleep average.
-- Train a Random Forest or Gradient Boosting model.
+- Add Gradient Boosting, XGBoost, or LightGBM for stronger tabular modeling.
 - Add separate models for each wellbeing domain.
 - Compare rule-based risk scoring against learned model predictions.
 - Build a true sequence model using LSTM, GRU, Temporal CNN, or Transformer architecture.
@@ -310,28 +469,39 @@ The next research steps are:
 Personal Wellbeing Time-Series Monitoring App - Independent Research Prototype
 - Built a digital health prototype for tracking student-level daily wellbeing signals across sleep, stress, mood, energy, screen time, workload, physical activity, and social connection.
 - Implemented domain-level scoring across physical, mental, social, occupational, and digital wellbeing, with time-series visualization and explainable risk feedback.
-- Added CSV import/export, a StudentLife dataset preparation script, and a baseline model training pipeline for wellbeing-risk prediction.
-- Added EDA and data-quality reporting for the processed StudentLife student-level wellbeing time-series dataset.
+- Added CSV import/export, StudentLife dataset preparation, EDA reporting, and model training pipelines for wellbeing-risk prediction.
+- Trained and compared Logistic Regression and Random Forest classifiers for next-day wellbeing-risk prediction, then served the best model through a Streamlit interface and optional FastAPI backend.
 ```
 
 ## Repository Structure
 
 ```text
 .
-├── index.html
-├── styles.css
-├── app.js
+├── streamlit_app.py
 ├── requirements.txt
+├── api/
+│   ├── __init__.py
+│   ├── main.py
+│   └── README.md
 ├── notebooks/
 │   └── personal_wellbeing_studentlife_pipeline.ipynb
 ├── data/
-│   └── README.md
+│   ├── README.md
+│   └── studentlife_wellbeing.csv
 ├── scripts/
 │   ├── eda_processed_data.py
+│   ├── enhanced_eda.py
 │   └── prepare_studentlife.py
 ├── models/
 │   ├── README.md
-│   └── train_baseline.py
+│   ├── compare_models.py
+│   ├── train_baseline.py
+│   ├── train_wellbeing_model.py
+│   └── artifacts/
+├── reports/
+│   ├── eda_report.md
+│   ├── enhanced_eda_report.md
+│   └── figures/
 └── README.md
 ```
 
